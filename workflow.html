@@ -1,0 +1,357 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta name="author" content="Bahareh Najafi"><title>Onboarding Workflow</title>
+<style>
+  /* Layout: a 4-phase agent trajectory (intake → route → extract → knowledge graph),
+     a clickable stage rail that drives a detail panel, and a side column for the
+     standalone agents + MCP layer that sit beside the linear flow. */
+  :root{
+    --bg:#EAEEF2; --panel:#FFFFFF; --panel2:#F4F7F9; --ink:#12191F; --ink2:#57636E;
+    --line:#D7DEE5; --line2:#E7ECF1; --accent:#0C9AA4; --accentsoft:#0c9aa41f; --accentink:#0a636a;
+    /* phase hues */
+    --intake:#3B7AD0; --route:#6E70B4; --extract:#CF860C; --kg:#2E9E6B; --aux:#B44E8B;
+    --intakesoft:#3b7ad01f; --routesoft:#6e70b41f; --extractsoft:#cf860c1f; --kgsoft:#2e9e6b1f; --auxsoft:#b44e8b1f;
+    --shadow:0 1px 2px #0c141b0d,0 12px 30px -14px #0c141b26;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace; --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  }
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+    --bg:#0D131A; --panel:#151D26; --panel2:#1A232D; --ink:#E7EDF3; --ink2:#93A1AF;
+    --line:#26313D; --line2:#1F2833; --accent:#2AD3C4; --accentsoft:#2ad3c422; --accentink:#8FEEE5;
+    --intake:#6BA4F2; --route:#9FA1EA; --extract:#EEAD3F; --kg:#48C78E; --aux:#E27CB9;
+    --intakesoft:#6ba4f222; --routesoft:#9fa1ea22; --extractsoft:#eead3f22; --kgsoft:#48c78e22; --auxsoft:#e27cb922;
+    --shadow:0 1px 2px #00000040,0 14px 34px -16px #00000080; color-scheme:dark;
+  }}
+  :root[data-theme="dark"]{
+    --bg:#0D131A; --panel:#151D26; --panel2:#1A232D; --ink:#E7EDF3; --ink2:#93A1AF;
+    --line:#26313D; --line2:#1F2833; --accent:#2AD3C4; --accentsoft:#2ad3c422; --accentink:#8FEEE5;
+    --intake:#6BA4F2; --route:#9FA1EA; --extract:#EEAD3F; --kg:#48C78E; --aux:#E27CB9;
+    --intakesoft:#6ba4f222; --routesoft:#9fa1ea22; --extractsoft:#eead3f22; --kgsoft:#48c78e22; --auxsoft:#e27cb922;
+    --shadow:0 1px 2px #00000040,0 14px 34px -16px #00000080; color-scheme:dark;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.5;
+    -webkit-font-smoothing:antialiased;padding-block:clamp(16px,3vw,34px);padding-inline:clamp(16px,3vw,34px)}
+  .wrap{max-width:1180px;margin:0 auto}
+  .mono{font-family:var(--mono)}
+  header{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;flex-wrap:wrap;margin-bottom:18px}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);font-weight:600;margin:0 0 8px}
+  h1{font-size:clamp(23px,3.3vw,34px);line-height:1.05;margin:0;font-weight:800;letter-spacing:-.02em;text-wrap:balance}
+  .sub{color:var(--ink2);margin:9px 0 0;max-width:68ch;font-size:15px}
+  .toggle{flex-shrink:0;display:inline-flex;gap:2px;background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:3px}
+  .toggle button{font-family:var(--mono);font-size:11px;border:0;background:transparent;color:var(--ink2);padding:6px 12px;border-radius:999px;cursor:pointer}
+  .toggle button[aria-pressed="true"]{background:var(--panel);color:var(--ink);box-shadow:var(--shadow)}
+  /* run bar */
+  .runbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+  .runbtn{font-family:var(--mono);font-size:12px;font-weight:700;border:1px solid var(--accent);color:var(--accent);
+    background:var(--accentsoft);border-radius:9px;padding:8px 14px;cursor:pointer}
+  .runbtn:hover{background:var(--accent);color:#fff}
+  .runhint{font-size:12.5px;color:var(--ink2)}
+  .wfid{font-family:var(--mono);font-size:11px;color:var(--ink2);border:1px dashed var(--line);border-radius:7px;padding:4px 9px}
+  .wfid b{color:var(--accent)}
+  /* main grid */
+  .grid{display:grid;grid-template-columns:1fr 340px;gap:18px;align-items:start}
+  @media (max-width:900px){.grid{grid-template-columns:1fr}}
+  /* phases */
+  .phase{margin-bottom:14px}
+  .phase-h{display:flex;align-items:center;gap:9px;margin:0 0 9px;font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-weight:600}
+  .phase-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+  .phase-h .cnt{color:var(--ink2);font-weight:400;margin-left:auto;letter-spacing:.04em}
+  .stages{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  @media (max-width:560px){.stages{grid-template-columns:1fr}}
+  .stage{position:relative;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:11px;
+    padding:11px 12px;cursor:pointer;color:inherit;font:inherit;transition:border-color .16s,transform .08s,box-shadow .16s;box-shadow:var(--shadow)}
+  .stage:hover{border-color:var(--sc,var(--accent))}
+  .stage:active{transform:translateY(1px)}
+  .stage[aria-pressed="true"]{border-color:var(--sc,var(--accent));box-shadow:inset 0 0 0 1.5px var(--sc,var(--accent)),var(--shadow)}
+  .stage.lit{animation:pulse .5s ease}
+  @keyframes pulse{0%{box-shadow:inset 0 0 0 2px var(--sc)}100%{box-shadow:inset 0 0 0 1.5px var(--sc),var(--shadow)}}
+  .stage .top{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+  .stage .num{font-family:var(--mono);font-size:10px;font-weight:700;width:19px;height:19px;border-radius:5px;
+    display:grid;place-items:center;background:var(--scs);color:var(--sc);flex-shrink:0}
+  .stage .nm{font-weight:700;font-size:13.5px;letter-spacing:-.01em;line-height:1.12}
+  .stage .ag{font-family:var(--mono);font-size:10.5px;color:var(--ink2);word-break:break-word}
+  .stage .leg{position:absolute;top:9px;right:10px;font-family:var(--mono);font-size:9px;letter-spacing:.05em;
+    text-transform:uppercase;color:var(--sc);background:var(--scs);padding:2px 6px;border-radius:5px;font-weight:700}
+  /* detail */
+  .detail{position:sticky;top:env(safe-area-inset-top,0px);background:var(--panel);border:1px solid var(--line);
+    border-radius:14px;box-shadow:var(--shadow);overflow:hidden}
+  .dh{padding:14px 16px;border-bottom:1px solid var(--line);background:var(--dcs,var(--panel2))}
+  .dh .dk{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--dc,var(--ink2));font-weight:700;margin-bottom:4px}
+  .dh .dt{font-weight:800;font-size:17px;letter-spacing:-.01em}
+  .dh .da{font-family:var(--mono);font-size:11px;color:var(--ink2);margin-top:3px;word-break:break-word}
+  .db{padding:14px 16px;display:flex;flex-direction:column;gap:13px}
+  .io{display:flex;flex-direction:column;gap:7px}
+  .iorow{display:grid;grid-template-columns:52px 1fr;gap:10px;align-items:baseline}
+  .iorow .iok{font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink2)}
+  .iorow .iov{font-size:12.5px}
+  .iorow .iov .mono{font-size:11.5px}
+  .svc{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:11px;padding:3px 8px;border-radius:6px;
+    background:var(--panel2);border:1px solid var(--line);color:var(--ink2)}
+  .svc.mcp{border-color:var(--aux);color:var(--aux);background:var(--auxsoft)}
+  .svclist{display:flex;gap:6px;flex-wrap:wrap}
+  .eng{font-size:12.5px;color:var(--ink);border-left:2px solid var(--dc,var(--accent));padding:4px 0 4px 11px;background:var(--dcs,var(--accentsoft));border-radius:0 7px 7px 0}
+  .eng b{color:var(--dc,var(--accentink))}
+  .detail.empty .db{color:var(--ink2);font-size:13px}
+  /* side column */
+  .side{display:flex;flex-direction:column;gap:14px}
+  .scard{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:13px 15px}
+  .scard h3{margin:0 0 4px;font-size:12px;font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink2);font-weight:600}
+  .scard p.cap{margin:0 0 10px;font-size:12px;color:var(--ink2)}
+  .aux{text-align:left;width:100%;display:flex;flex-direction:column;gap:2px;background:var(--panel2);border:1px solid var(--line);
+    border-left:3px solid var(--aux);border-radius:9px;padding:9px 11px;margin-bottom:7px;cursor:pointer;color:inherit;font:inherit}
+  .aux:last-child{margin-bottom:0}
+  .aux:hover{border-color:var(--aux)}
+  .aux[aria-pressed="true"]{box-shadow:inset 0 0 0 1px var(--aux)}
+  .aux .an{font-weight:700;font-size:13px;letter-spacing:-.01em}
+  .aux .ad{font-family:var(--mono);font-size:10.5px;color:var(--ink2)}
+  .mcpgrid{display:flex;flex-wrap:wrap;gap:6px}
+  .mcpchip{font-family:var(--mono);font-size:10.5px;padding:4px 8px;border-radius:7px;border:1px solid var(--line);color:var(--ink2);background:var(--panel2)}
+  .mcpchip.on{border-color:var(--kg);color:var(--kg);background:var(--kgsoft)}
+  .mcpchip.pend{border-style:dashed;border-color:var(--extract);color:var(--extract);background:var(--extractsoft)}
+  .xfacts{display:flex;flex-direction:column;gap:9px}
+  .xf{display:flex;gap:9px;align-items:flex-start;font-size:12.5px}
+  .xf .xi{font-family:var(--mono);font-size:10px;font-weight:700;padding:2px 6px;border-radius:5px;background:var(--accentsoft);color:var(--accent);flex-shrink:0;margin-top:1px;white-space:nowrap}
+  .foot{margin-top:16px;font-size:11.5px;color:var(--ink2);font-family:var(--mono);text-align:center}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <p class="eyebrow">Agentic AI · onboarding workflow · 13 agents</p>
+      <h1>How a document package becomes a knowledge graph</h1>
+      <p class="sub">One site's drawing set goes in; a loaded knowledge graph comes out. Thirteen Azure AI Foundry agents run in a fixed order across four phases — registration, classification and routing, two-legged equipment extraction, and graph assembly. Click any stage to see the agent, what it reads, what it emits, and the engineering that keeps it honest.</p>
+    </div>
+    <div class="toggle" role="group" aria-label="Theme">
+      <button data-th="light" aria-pressed="false">Light</button>
+      <button data-th="dark" aria-pressed="false">Dark</button>
+    </div>
+  </header>
+  <div class="pf-outcome"><b>13 agents, four phases, two extraction legs.</b> One document package in, a loaded knowledge graph out — authored end to end on Azure AI Foundry.</div>
+
+  <div class="runbar">
+    <button class="runbtn" id="runbtn">▶ Trace a run</button>
+    <span class="wfid">wf_id <b>01M3A3Z3…</b> threads every call</span>
+    <span class="runhint" id="runhint">Each stage carries the same <span class="mono">wf_id</span>, so large payloads are fetched by reference, never copied through an LLM.</span>
+  </div>
+
+  <div class="grid">
+    <div id="phases"></div>
+    <div class="side">
+      <div class="detail empty" id="detail">
+        <div class="dh"><div class="dk">stage</div><div class="dt">Pick a stage</div></div>
+        <div class="db">Select any stage in the trajectory — or an agent below — to see its role, inputs, outputs, and the reliability detail behind it.</div>
+      </div>
+      <div class="scard">
+        <h3>Standalone agents</h3>
+        <p class="cap">Built alongside the workflow — not linear nodes, but the same agent stack.</p>
+        <div id="aux"></div>
+      </div>
+      <div class="scard">
+        <h3>MCP server layer</h3>
+        <p class="cap">Five single-purpose servers I built.</p>
+        <div class="mcpgrid" id="mcp"></div>
+      </div>
+      <div class="scard">
+        <h3>Cross-cutting</h3>
+        <div class="xfacts" id="xfacts"></div>
+      </div>
+    </div>
+  </div>
+
+  <p class="foot">Stage order taken from the workflow definition · two extraction legs (schedule + SLD) share one extractor and one ingest agent · gates: confidence &lt; 0.85 → LLM tiebreaker · &lt; 0.70 → human-in-the-loop</p>
+</div>
+
+<script>
+(function(){
+  var root=document.documentElement;
+  var tb=document.querySelectorAll('.toggle button');
+  function setT(t){root.setAttribute('data-theme',t);tb.forEach(function(b){b.setAttribute('aria-pressed',b.dataset.th===t);});}
+  tb.forEach(function(b){b.addEventListener('click',function(){setT(b.dataset.th);});});
+  var mq=matchMedia('(prefers-color-scheme:dark)');tb.forEach(function(b){b.setAttribute('aria-pressed',(mq.matches?'dark':'light')===b.dataset.th);});
+
+  var PH={intake:{nm:'Intake',c:'--intake',cs:'--intakesoft'},route:{nm:'Route & locate',c:'--route',cs:'--routesoft'},
+    extract:{nm:'Resolve & extract',c:'--extract',cs:'--extractsoft'},kg:{nm:'Knowledge graph',c:'--kg',cs:'--kgsoft'}};
+
+  var STAGES=[
+    {n:1,ph:'intake',nm:'Package Registration',ag:'package-registration-agent',
+     svc:[['register_package','mcp']],
+     in:'site_id · file URIs · wf_id',out:'StoredPackage manifest',
+     eng:'The trigger splices <b>wf_id in as a first-class JSON key</b> before the agent sees it — so the LLM never has to scrape it out of prose. That one change killed the intermittent “wf_id is not there” failures downstream.'},
+    {n:2,ph:'intake',nm:'Document Classification',ag:'doc-classifier-agent',
+     svc:[['doc-intel','mcp']],
+     in:'package manifest',out:'per-document doc_type + confidence',
+     eng:'A <b>deterministic rule ladder — first match wins</b> — types ~85% of documents; GPT-4.1 only breaks ties below 0.85, and anything below 0.70 is held for human review. Classification fans out service-side across every file in the package.'},
+    {n:3,ph:'intake',nm:'Coverage Ingest',ag:'coverage-ingest-agent',
+     svc:[['coverage-service','svc']],
+     in:'classification result',out:'expected-docs checklist updated',
+     eng:'Posts the classifier’s verdicts onto the site’s <b>coverage checklist</b> so operators can see what is present vs. still missing. No-ops cleanly when the run has no onboarding_session_id.'},
+    {n:4,ph:'route',nm:'Orchestrator',ag:'onboarding-orchestrator-agent',
+     svc:[],
+     in:'classification result',out:'routing + Gate 1 decision',
+     eng:'Consumes the classification result, applies <b>Gate 1</b> and decides which disciplines proceed to extraction. The one agent that reasons about the package as a whole rather than a single document.'},
+    {n:5,ph:'route',nm:'Page Locator',ag:'page-locator-agent',
+     svc:[],
+     in:'classification result',out:'relevant pages per discipline',
+     eng:'Finds the schedule tables and the electrical one-line sheets <b>inside</b> a (often bundled) PDF, emitting a disciplines array of {doc_type, relevant_pages} so each leg reads only its own pages.'},
+    {n:6,ph:'extract',nm:'Extract-Resolve · schedule',ag:'extract-resolve-agent',leg:'schedule',
+     svc:[['resolve_object_store_uri','mcp']],
+     in:'localization + context',out:'SAS URL + pages · extraction_kind=schedule',
+     eng:'A thin dispatcher: for the BOM/schedule discipline it picks the right document by <b>localization_confidence</b> and mints a short-lived READ SAS so the extractor needs no blob RBAC.'},
+    {n:7,ph:'extract',nm:'Extract-Resolve · SLD',ag:'extract-resolve-agent',leg:'sld',
+     svc:[['resolve_object_store_uri','mcp']],
+     in:'localization + context',out:'SAS URL + pages · extraction_kind=sld',
+     eng:'The same agent, second call — this time resolving the <b>electrical one-line</b> discipline. Sending extraction_kind deterministically here is what stops a bundled “Ambiguous” PDF from silently skipping the SLD leg.'},
+    {n:8,ph:'extract',nm:'Schedule Extractor',ag:'equipment-extractor-agent',leg:'schedule',
+     svc:[['equipment-extractor','svc']],
+     in:'SAS + schedule pages',out:'equipment instances (BOM)',
+     eng:'Reads equipment-schedule tables — spreadsheets parse as data, PDFs take the vision pass — and returns coverage-ready identity rows (type · manufacturer · model · tag).'},
+    {n:9,ph:'extract',nm:'Schedule Ingest',ag:'equipment-ingest-agent',leg:'schedule',
+     svc:[['coverage-service','svc']],
+     in:'schedule equipment',out:'posted to coverage session',
+     eng:'Writes the schedule equipment into the coverage session checklist. Idempotent and no-ops without a session, so a re-run never double-counts.'},
+    {n:10,ph:'extract',nm:'SLD Extractor',ag:'equipment-extractor-agent',leg:'sld',
+     svc:[['equipment-extractor','svc']],
+     in:'SAS + SLD pages',out:'electrical devices + topology',
+     eng:'The vision pipeline — <b>render → tile → read → dedup → consolidate</b>. Renders at ≤200 DPI (400 blanks large sheets), retries throttled reads, and <b>fails loud</b> on empty-due-to-errors vs. a genuinely empty sheet. SAS tokens are redacted from every error and log.'},
+    {n:11,ph:'extract',nm:'SLD Ingest',ag:'equipment-ingest-agent',leg:'sld',
+     svc:[['coverage-service','svc']],
+     in:'SLD equipment',out:'posted to coverage session',
+     eng:'Same ingest agent, SLD leg — posts the electrical devices to coverage. The device envelope is addressed by wf_id so the large array need not travel through the agent’s context.'},
+    {n:12,ph:'kg',nm:'KG Bundle',ag:'kg-bundle-agent',
+     svc:[['coverage-service · kg_bundle','svc'],['object-store','mcp']],
+     in:'SLD devices (by wf_id) + equipment-list BOM',out:'KG bundle → object store (bundle_key)',
+     eng:'Builds a power-systems knowledge-graph bundle. Devices are <b>fetched server-side by wf_id, not inlined</b> — the fix for a context-window overflow that used to stop this agent on large sites. Emits the bundle to the object store by reference.'},
+    {n:13,ph:'kg',nm:'KG Loader',ag:'kg-loader-agent',
+     svc:[['kg-loader','svc'],['object-store','mcp']],
+     in:'bundle_key',out:'nodes + edges in the KG DB',
+     eng:'Fetches the bundle from the object store through an <b>SSRF-guarded</b> fetch and loads it into the knowledge-graph database. No-ops without a bundle, so a package with no SLD leg still completes cleanly.'}
+  ];
+
+  var AUX=[
+    {nm:'doc-fetch agent',ad:'resolve_object_store_uri',
+     in:'source_uri',out:'short-lived READ SAS',
+     eng:'A thin fetch dispatcher the extraction legs reuse — turns a stored URI into a short-lived READ SAS so no downstream service needs blob credentials.'},
+    {nm:'equipment-docs agent',ad:'equipment_docs_retrieve · hybrid RAG',
+     in:'operator question',out:'cited manual passages',
+     eng:'Retrieval over the equipment-docs index — BM25 + vector + semantic reranker — on a <b>bespoke ingestion pipeline</b> (heuristic + Document-Intelligence chunking) tuned beyond default Azure AI Search chunking.'},
+    {nm:'equipment-QA agent',ad:'RAG + bounded KG operation surface',
+     in:'operator question',out:'answer: manual OR graph',
+     eng:'Routes each question to the manuals RAG or a <b>bounded KG operation set</b> (resolve, feeders/loads with breaker + meter collapse, trace-path, containment, filters, aggregates, telemetry) — a deterministic surface the model answers through instead of the raw twin.'}
+  ];
+
+  var MCP=[['package-registration','on'],['object-store','on'],['equipment-docs','on'],['doc-intel','on'],['audit · HITL','on']];
+
+  var XF=[
+    ['wf_id','Threads every call; large payloads (devices, bundles) are fetched by reference, keeping LLM context small.'],
+    ['by-ref','Bundle-by-reference: kg-bundle emits to the object store, the loader fetches by bundle_key — no oversized hand-off through agent context.'],
+    ['gates','Confidence &lt; 0.85 → GPT-4.1 tiebreaker; &lt; 0.70 → human-in-the-loop Gate 1 (audit MCP).'],
+    ['fail-loud','An empty result caused by throttling or a render bug fails the job; only a genuinely deviceless sheet finishes empty.']
+  ];
+
+  // build phases
+  var order=['intake','route','extract','kg'];
+  var phWrap=document.getElementById('phases');
+  order.forEach(function(pk){
+    var ph=PH[pk];var items=STAGES.filter(function(s){return s.ph===pk;});
+    var sec=document.createElement('div');sec.className='phase';
+    sec.innerHTML='<div class="phase-h" style="color:var('+ph.c+')"><span class="phase-dot" style="background:var('+ph.c+')"></span>'+ph.nm+'<span class="cnt">'+items.length+' '+(items.length>1?'stages':'stage')+'</span></div>';
+    var g=document.createElement('div');g.className='stages';
+    items.forEach(function(s){
+      var b=document.createElement('button');b.className='stage';b.dataset.n=s.n;b.setAttribute('aria-pressed','false');
+      b.style.setProperty('--sc','var('+ph.c+')');b.style.setProperty('--scs','var('+ph.cs+')');
+      b.innerHTML=(s.leg?'<span class="leg">'+s.leg+'</span>':'')+
+        '<div class="top"><span class="num">'+s.n+'</span><span class="nm">'+s.nm+'</span></div>'+
+        '<div class="ag">'+s.ag+'</div>';
+      b.addEventListener('click',function(){showStage(s);});
+      g.appendChild(b);
+    });
+    sec.appendChild(g);phWrap.appendChild(sec);
+  });
+
+  // aux agents
+  var auxWrap=document.getElementById('aux');
+  AUX.forEach(function(a,i){
+    var b=document.createElement('button');b.className='aux';b.dataset.ax=i;b.setAttribute('aria-pressed','false');
+    b.innerHTML='<span class="an">'+a.nm+'</span><span class="ad">'+a.ad+'</span>';
+    b.addEventListener('click',function(){showAux(a,b);});
+    auxWrap.appendChild(b);
+  });
+  // mcp chips
+  var mcpWrap=document.getElementById('mcp');
+  MCP.forEach(function(m){var s=document.createElement('span');s.className='mcpchip '+(m[1]==='on'?'on':'pend');s.textContent=m[0]+(m[1]==='pend'?' ◦':'');mcpWrap.appendChild(s);});
+  // cross-cutting
+  var xfWrap=document.getElementById('xfacts');
+  XF.forEach(function(x){var d=document.createElement('div');d.className='xf';d.innerHTML='<span class="xi">'+x[0]+'</span><span>'+x[1]+'</span>';xfWrap.appendChild(d);});
+
+  function clearPressed(){document.querySelectorAll('.stage,.aux').forEach(function(e){e.setAttribute('aria-pressed','false');});}
+  function svcHtml(svc){
+    if(!svc.length)return '<span class="svc">workflow-internal · no external call</span>';
+    return '<div class="svclist">'+svc.map(function(s){return '<span class="svc'+(s[1]==='mcp'?' mcp':'')+'">'+(s[1]==='mcp'?'MCP · ':'')+s[0]+'</span>';}).join('')+'</div>';
+  }
+  function showStage(s){
+    clearPressed();
+    var el=document.querySelector('.stage[data-n="'+s.n+'"]');if(el)el.setAttribute('aria-pressed','true');
+    var ph=PH[s.ph];
+    var d=document.getElementById('detail');d.classList.remove('empty');
+    d.style.setProperty('--dc','var('+ph.c+')');d.style.setProperty('--dcs','var('+ph.cs+')');
+    d.innerHTML=
+      '<div class="dh"><div class="dk">stage '+s.n+' / 13 · '+ph.nm+(s.leg?' · '+s.leg+' leg':'')+'</div>'+
+        '<div class="dt">'+s.nm+'</div><div class="da">'+s.ag+'</div></div>'+
+      '<div class="db">'+
+        '<div class="io">'+
+          '<div class="iorow"><span class="iok">in</span><span class="iov">'+s.in+'</span></div>'+
+          '<div class="iorow"><span class="iok">out</span><span class="iov">'+s.out+'</span></div>'+
+          '<div class="iorow"><span class="iok">calls</span><span class="iov">'+svcHtml(s.svc)+'</span></div>'+
+        '</div>'+
+        '<div class="eng">'+s.eng+'</div>'+
+      '</div>';
+  }
+  function showAux(a,btn){
+    clearPressed();btn.setAttribute('aria-pressed','true');
+    var d=document.getElementById('detail');d.classList.remove('empty');
+    d.style.setProperty('--dc','var(--aux)');d.style.setProperty('--dcs','var(--auxsoft)');
+    d.innerHTML=
+      '<div class="dh"><div class="dk">standalone agent</div><div class="dt">'+a.nm+'</div><div class="da">'+a.ad+'</div></div>'+
+      '<div class="db"><div class="io">'+
+        '<div class="iorow"><span class="iok">in</span><span class="iov">'+a.in+'</span></div>'+
+        '<div class="iorow"><span class="iok">out</span><span class="iov">'+a.out+'</span></div>'+
+      '</div><div class="eng">'+a.eng+'</div></div>';
+  }
+
+  // trace a run — light each stage in order
+  var runbtn=document.getElementById('runbtn');var running=false;
+  var reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
+  runbtn.addEventListener('click',function(){
+    if(running)return;running=true;runbtn.textContent='● running…';
+    var els=Array.prototype.slice.call(document.querySelectorAll('.stage'));
+    var i=0;
+    function step(){
+      if(i>0)els[i-1].classList.remove('lit');
+      if(i>=els.length){running=false;runbtn.textContent='▶ Trace a run';showStage(STAGES[STAGES.length-1]);return;}
+      var el=els[i];el.classList.add('lit');
+      showStage(STAGES[i]);
+      el.scrollIntoView({behavior:'smooth',block:'nearest'});
+      i++;setTimeout(step,reduce?0:620);
+    }
+    step();
+  });
+
+  showStage(STAGES[0]);
+})();
+</script>
+
+<style>
+.pf-nav{max-width:1180px;margin:20px auto 6px;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;
+  padding:14px 16px;border-top:1px solid var(--line);font-family:var(--mono);font-size:12px}
+.pf-nav .pf-k{color:var(--ink2);letter-spacing:.09em;text-transform:uppercase;font-size:10.5px;font-weight:700;margin-right:4px}
+.pf-nav a{color:var(--accent);text-decoration:none;padding:5px 10px;border:1px solid var(--line);border-radius:7px}
+.pf-nav a:hover{border-color:var(--accent)}
+.pf-nav a[aria-current="page"]{background:var(--accent);color:#fff;border-color:var(--accent)}
+.pf-outcome{margin:0 0 18px;padding:11px 15px;border:1px solid var(--line);border-left:4px solid var(--accent);
+  border-radius:11px;background:var(--panel);box-shadow:var(--shadow);font-size:13.5px;color:var(--ink);line-height:1.5}
+.pf-outcome b{color:var(--accent)}
+</style>
+<nav class="pf-nav" aria-label="Agentic AI portfolio"><span class="pf-k">Agentic AI portfolio</span><a href="index.html">&larr; Home</a><a href="architecture.html">Architecture</a><a href="workflow.html" aria-current="page">Workflow</a><a href="classifier.html">Classifier</a><a href="chunking.html">Chunking</a><a href="dangling-edges.html">Dangling edges</a></nav>
+
+</body></html>

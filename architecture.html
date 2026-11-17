@@ -1,0 +1,417 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta name="author" content="Bahareh Najafi"><title>Agentic Onboarding Architecture</title>
+<style>
+  /* Layout: a layered system architecture — experience → orchestration → agents →
+     MCP tool layer → microservices → data stores — read top to bottom, with a
+     clickable component map driving a detail panel and a cross-cutting rail. */
+  :root{
+    --bg:#ECEFF3; --panel:#FFFFFF; --panel2:#F4F7FA; --ink:#121820; --ink2:#586471;
+    --line:#D6DDE5; --line2:#E8ECF1; --accent:#0C9AA4; --accentsoft:#0c9aa41f; --accentink:#0a636a;
+    --exp:#B44E8B; --orch:#6E70B4; --agent:#3B7AD0; --mcp:#0C9AA4; --svc:#CF860C; --data:#2E9E6B;
+    --expsoft:#b44e8b1a; --orchsoft:#6e70b41a; --agentsoft:#3b7ad01a; --mcpsoft:#0c9aa41a; --svcsoft:#cf860c1a; --datasoft:#2e9e6b1a;
+    --shadow:0 1px 2px #0c141b0d,0 12px 30px -14px #0c141b26;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace; --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  }
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+    --bg:#0D131A; --panel:#151D26; --panel2:#1A232D; --ink:#E7EDF3; --ink2:#93A1AF;
+    --line:#26313D; --line2:#1F2833; --accent:#2AD3C4; --accentsoft:#2ad3c422; --accentink:#8FEEE5;
+    --exp:#E27CB9; --orch:#9FA1EA; --agent:#6BA4F2; --mcp:#2AD3C4; --svc:#EEAD3F; --data:#48C78E;
+    --expsoft:#e27cb922; --orchsoft:#9fa1ea22; --agentsoft:#6ba4f222; --mcpsoft:#2ad3c422; --svcsoft:#eead3f22; --datasoft:#48c78e22;
+    --shadow:0 1px 2px #00000040,0 14px 34px -16px #00000080; color-scheme:dark;
+  }}
+  :root[data-theme="dark"]{
+    --bg:#0D131A; --panel:#151D26; --panel2:#1A232D; --ink:#E7EDF3; --ink2:#93A1AF;
+    --line:#26313D; --line2:#1F2833; --accent:#2AD3C4; --accentsoft:#2ad3c422; --accentink:#8FEEE5;
+    --exp:#E27CB9; --orch:#9FA1EA; --agent:#6BA4F2; --mcp:#2AD3C4; --svc:#EEAD3F; --data:#48C78E;
+    --expsoft:#e27cb922; --orchsoft:#9fa1ea22; --agentsoft:#6ba4f222; --mcpsoft:#2ad3c422; --svcsoft:#eead3f22; --datasoft:#48c78e22;
+    --shadow:0 1px 2px #00000040,0 14px 34px -16px #00000080; color-scheme:dark;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.5;
+    -webkit-font-smoothing:antialiased;padding-block:clamp(16px,3vw,34px);padding-inline:clamp(16px,3vw,34px)}
+  .wrap{max-width:1200px;margin:0 auto}
+  .mono{font-family:var(--mono)}
+  header{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;flex-wrap:wrap;margin-bottom:16px}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);font-weight:600;margin:0 0 8px}
+  h1{font-size:clamp(23px,3.3vw,34px);line-height:1.05;margin:0;font-weight:800;letter-spacing:-.02em;text-wrap:balance}
+  .sub{color:var(--ink2);margin:9px 0 0;max-width:70ch;font-size:15px}
+  .toggle{flex-shrink:0;display:inline-flex;gap:2px;background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:3px}
+  .toggle button{font-family:var(--mono);font-size:11px;border:0;background:transparent;color:var(--ink2);padding:6px 12px;border-radius:999px;cursor:pointer}
+  .toggle button[aria-pressed="true"]{background:var(--panel);color:var(--ink);box-shadow:var(--shadow)}
+  .statline{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+  .stat{flex:1;min-width:120px;background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:10px 13px;box-shadow:var(--shadow)}
+  .stat .sv{font-weight:800;font-size:19px;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+  .stat .sk{font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink2);margin-top:2px}
+  .grid{display:grid;grid-template-columns:1fr 330px;gap:16px;align-items:start}
+  @media (max-width:920px){.grid{grid-template-columns:1fr}}
+  /* layer stack */
+  .stack{display:flex;flex-direction:column;gap:9px}
+  .layer{background:var(--panel);border:1px solid var(--line);border-radius:13px;box-shadow:var(--shadow);overflow:hidden;
+    border-left:4px solid var(--lc,var(--accent))}
+  .layer-h{display:flex;align-items:center;gap:9px;padding:9px 13px 0}
+  .layer-h .lk{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--lc,var(--ink2));font-weight:700}
+  .layer-h .ld{font-size:11.5px;color:var(--ink2);margin-left:auto}
+  .comps{display:flex;flex-wrap:wrap;gap:7px;padding:9px 13px 13px}
+  .comp{text-align:left;background:var(--lcs,var(--panel2));border:1px solid var(--line);border-radius:9px;padding:8px 11px;
+    cursor:pointer;color:inherit;font:inherit;transition:border-color .15s,transform .08s;min-width:0}
+  .comp:hover{border-color:var(--lc,var(--accent))}
+  .comp:active{transform:translateY(1px)}
+  .comp[aria-pressed="true"]{border-color:var(--lc,var(--accent));box-shadow:inset 0 0 0 1.5px var(--lc,var(--accent))}
+  .comp .cn{font-weight:700;font-size:13px;letter-spacing:-.01em;display:block}
+  .comp .cm{font-family:var(--mono);font-size:10px;color:var(--ink2);display:block;margin-top:1px}
+  .comp.ghost{border-style:dashed;opacity:.82}
+  .flowtag{font-family:var(--mono);font-size:9.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink2);
+    text-align:center;padding:1px 0 0}
+  /* side */
+  .side{display:flex;flex-direction:column;gap:14px}
+  .detail{position:sticky;top:env(safe-area-inset-top,0px);background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);overflow:hidden}
+  .dh{padding:14px 16px;border-bottom:1px solid var(--line);background:var(--dcs,var(--panel2))}
+  .dh .dk{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--dc,var(--ink2));font-weight:700;margin-bottom:4px}
+  .dh .dt{font-weight:800;font-size:17px;letter-spacing:-.01em}
+  .dh .da{font-family:var(--mono);font-size:11px;color:var(--ink2);margin-top:3px}
+  .db{padding:14px 16px;display:flex;flex-direction:column;gap:12px;font-size:13px}
+  .db .role{color:var(--ink)}
+  .db .eng{color:var(--ink);border-left:2px solid var(--dc,var(--accent));padding:4px 0 4px 11px;background:var(--dcs,var(--accentsoft));border-radius:0 7px 7px 0;font-size:12.5px}
+  .db .eng b{color:var(--dc,var(--accentink))}
+  .db .tech{display:flex;flex-wrap:wrap;gap:5px}
+  .db .tech .t{font-family:var(--mono);font-size:10.5px;padding:3px 7px;border-radius:6px;background:var(--panel2);border:1px solid var(--line);color:var(--ink2)}
+  .detail.empty .db{color:var(--ink2)}
+  .scard{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:13px 15px}
+  .scard h3{margin:0 0 9px;font-size:12px;font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink2);font-weight:600}
+  .xf{display:flex;gap:9px;align-items:flex-start;font-size:12.5px;margin-bottom:9px}
+  .xf:last-child{margin-bottom:0}
+  .xf .xi{font-family:var(--mono);font-size:10px;font-weight:700;padding:2px 6px;border-radius:5px;background:var(--accentsoft);color:var(--accent);flex-shrink:0;margin-top:1px;white-space:nowrap}
+  /* flowchart */
+  .flowsec{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:13px 15px;margin-bottom:16px}
+  .flowsec h2{margin:0 0 3px;font-size:12px;font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink2);font-weight:600}
+  .flowsec p.cap{margin:0 0 11px;font-size:12.5px;color:var(--ink2);max-width:72ch}
+  .flowhead{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:3px}
+  .flowhead h2{margin:0}
+  .tracebtn{margin-left:auto;font-family:var(--mono);font-size:11px;font-weight:700;border:1px solid var(--accent);color:var(--accent);background:var(--accentsoft);border-radius:8px;padding:6px 12px;cursor:pointer}
+  .tracebtn:hover{background:var(--accent);color:#fff}
+  .fnode.trace rect{stroke-width:2.8;filter:brightness(1.08)}
+  .flowscroll{overflow-x:auto;overflow-y:hidden}
+  .flowscroll svg{display:block;width:100%;min-width:540px;height:auto}
+  .ft{font:700 11px var(--sans)}
+  .fs{font:10px var(--mono)}
+  .fnode{cursor:pointer}
+  .fnode rect{transition:filter .15s,stroke-width .12s}
+  .fnode:hover rect{filter:brightness(1.05)}
+  .fnode[aria-selected="true"] rect{stroke-width:2.6}
+  .elabel{font:9px var(--mono)}
+  .lanelab{font:700 9px var(--mono);letter-spacing:.07em}
+  .flowkey{display:flex;flex-wrap:wrap;gap:12px;margin-top:11px;font-family:var(--mono);font-size:10.5px;color:var(--ink2)}
+  .flowkey .k{display:flex;align-items:center;gap:5px}
+  .flowkey .sw{width:11px;height:11px;border-radius:3px;flex-shrink:0}
+  .foot{margin-top:16px;font-size:11.5px;color:var(--ink2);font-family:var(--mono);text-align:center}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <p class="eyebrow">Agentic AI · system architecture</p>
+      <h1>A data-center onboarding platform, end to end</h1>
+      <p class="sub">A document package goes in; a loaded knowledge graph and an operator Q&amp;A surface come out. The system is layered — an operator experience, an agent orchestration workflow, a tool layer of purpose-built MCP servers, backing microservices, and the data stores underneath. Click any component to see its role and the engineering behind it.</p>
+    </div>
+    <div class="toggle" role="group" aria-label="Theme">
+      <button data-th="light" aria-pressed="false">Light</button>
+      <button data-th="dark" aria-pressed="false">Dark</button>
+    </div>
+  </header>
+  <div class="pf-outcome"><b>Sole owner of a 13-agent platform.</b> Fail-loud reliability turned silent data loss into surfaced failures; bundle-by-reference removed a context-window overflow; two data centers onboarded.</div>
+
+  <div class="statline">
+    <div class="stat"><div class="sv">13</div><div class="sk">orchestrated agents</div></div>
+    <div class="stat"><div class="sv">5</div><div class="sk">MCP servers built</div></div>
+    <div class="stat"><div class="sv">6</div><div class="sk">backing microservices</div></div>
+    <div class="stat"><div class="sv">~15</div><div class="sk">components, sole owner</div></div>
+    <div class="stat"><div class="sv">2</div><div class="sk">data centers onboarded</div></div>
+  </div>
+
+  <div class="flowsec">
+    <div class="flowhead"><h2>End-to-end flow</h2><button class="tracebtn" id="tracebtn">▶ Trace a run</button></div>
+    <p class="cap">How one document package moves through the system — intake and classification, routing, the two parallel extraction legs (equipment schedules and electrical one-lines), and graph assembly. Click any step for detail.</p>
+    <div class="flowscroll"><div id="flow"></div></div>
+    <div class="flowkey">
+      <span class="k"><span class="sw" style="background:var(--agent)"></span>intake</span>
+      <span class="k"><span class="sw" style="background:var(--orch)"></span>route</span>
+      <span class="k"><span class="sw" style="background:var(--svc)"></span>extract</span>
+      <span class="k"><span class="sw" style="background:var(--data)"></span>knowledge graph</span>
+      <span class="k"><span class="sw" style="background:var(--mcp)"></span>data store</span>
+      <span class="k"><span class="sw" style="background:var(--exp)"></span>experience</span>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="stack" id="stack"></div>
+    <div class="side">
+      <div class="detail empty" id="detail">
+        <div class="dh"><div class="dk">component</div><div class="dt">Pick a component</div></div>
+        <div class="db">Click any box in the architecture to see what it does, what it talks to, and the engineering decision behind it.</div>
+      </div>
+      <div class="scard">
+        <h3>Cross-cutting design</h3>
+        <div id="xfacts"></div>
+      </div>
+    </div>
+  </div>
+
+  <p class="foot">Grounded in the production system · product, site, and ontology names generalized · vendor platforms named as built</p>
+</div>
+
+<script>
+(function(){
+  var root=document.documentElement;
+  var tb=document.querySelectorAll('.toggle button');
+  function setT(t){root.setAttribute('data-theme',t);tb.forEach(function(b){b.setAttribute('aria-pressed',b.dataset.th===t);});}
+  tb.forEach(function(b){b.addEventListener('click',function(){setT(b.dataset.th);});});
+  var mq=matchMedia('(prefers-color-scheme:dark)');tb.forEach(function(b){b.setAttribute('aria-pressed',(mq.matches?'dark':'light')===b.dataset.th);});
+
+  var LAYERS=[
+    {key:'exp',k:'Experience',c:'--exp',cs:'--expsoft',d:'what operators touch',
+     flow:'user questions ↓ · answers ↑',
+     comps:[
+       {n:'Operator UI',m:'web app',role:'The operator-facing console where a site is onboarded and its equipment is queried.',tech:['onboarding progress','equipment answers'],eng:'Onboarding progress and equipment answers from the agent platform surface here for operators.'},
+       {n:'Equipment Q&A',m:'answer surface',role:'Natural-language questions about site equipment — answered from manuals or the knowledge graph.',tech:['hybrid RAG','bounded KG operations'],eng:'Routes each question to a <b>manuals RAG</b> or a <b>bounded knowledge-graph operation surface</b> — a deterministic set the model answers through instead of the raw graph.'}
+     ]},
+    {key:'orch',k:'Orchestration',c:'--orch',cs:'--orchsoft',d:'the agent workflow engine',
+     flow:'document package ↓',
+     comps:[
+       {n:'Agent workflow',m:'13-agent pipeline',role:'A fixed-order workflow that runs all 13 agents across four phases: intake → route → extract (two legs) → knowledge graph.',tech:['Azure AI Foundry','authored the workflow + agent specs'],eng:'I <b>authored the workflow and every agent spec</b>, and defined the cross-service dependency graph and the dev→QA promotion model myself.'}
+     ]},
+    {key:'agent',k:'Agents',c:'--agent',cs:'--agentsoft',d:'13 orchestrated + 3 standalone',
+     flow:'calls tools ↓',
+     comps:[
+       {n:'Intake',m:'register · classify · coverage',role:'Registers the package, classifies every document, and posts results to the coverage checklist.',tech:['rule ladder + LLM tiebreaker'],eng:'Classification is a <b>deterministic rule ladder (first match wins)</b>; the LLM only breaks ties below 0.85, and below 0.70 goes to human review.'},
+       {n:'Route & locate',m:'orchestrator · page locator',role:'Applies routing/Gate-1 and finds the schedule and one-line pages inside a (often bundled) PDF.',tech:['per-discipline page localization'],eng:'The locator emits a disciplines array so each extraction leg reads only its own pages — the key to handling bundled multi-discipline sets.'},
+       {n:'Extract (schedule + SLD)',m:'resolve · extract · ingest ×2',role:'Two legs — equipment schedules and electrical one-lines — each resolves a document, extracts equipment, and ingests it to coverage.',tech:['vision pipeline','short-lived SAS'],eng:'The SLD leg is a <b>render→tile→read→dedup→consolidate</b> vision pipeline; sending the discipline deterministically stops a bundled doc from silently skipping it.'},
+       {n:'Knowledge graph',m:'bundle · load',role:'Assembles a knowledge-graph bundle from the extracted devices and loads it into the graph DB.',tech:['bundle-by-reference'],eng:'Devices are <b>fetched server-side by run id, not inlined</b> — the fix for a context-window overflow that used to stop the bundler on large sites.'},
+       {n:'Doc Fetch',m:'standalone',role:'A thin dispatcher that turns a stored URI into a short-lived READ credential the extraction legs reuse.',tech:['object-store resolve'],eng:'Keeps blob credentials out of every downstream service — they receive a short-lived READ URL instead.'},
+       {n:'Equipment Docs (RAG)',m:'standalone',role:'Retrieval over equipment manuals with citations.',tech:['BM25 + vector + reranker'],eng:'Runs on a <b>bespoke ingestion pipeline</b> tuned well beyond default search-service chunking (see the chunking benchmark).'}
+     ]},
+    {key:'mcp',k:'MCP tool layer',c:'--mcp',cs:'--mcpsoft',d:'5 servers I built',
+     flow:'typed tool calls ↓',
+     comps:[
+       {n:'Package Registration',m:'register_package',role:'The entry tool: records the package manifest for a site run.',tech:['FastMCP'],eng:'Run id is spliced in as a <b>first-class field</b> here, so no agent has to scrape it out of prose.'},
+       {n:'Object Store',m:'resolve_object_store_uri',role:'Mints short-lived READ credentials and holds by-reference payloads (devices, bundles).',tech:['SAS','SSRF-guarded'],eng:'The backbone of <b>by-reference data flow</b> — large arrays move as URIs, not through LLM context.'},
+       {n:'Equipment Docs',m:'equipment_docs_retrieve',role:'Hybrid retrieval over the equipment index, with the tuned calibration baked in.',tech:['hybrid search','calibration as source of truth'],eng:'The tuned top_k and relevance gate live <b>here as the single source of truth</b>, not scattered across callers.'},
+       {n:'Document Intelligence',m:'doc-intel',role:'Layout/structure signals used by the classifier.',tech:['prebuilt-layout'],eng:'Feeds the rule ladder the title blocks, headings and tables it types documents from.'},
+       {n:'Audit',m:'HITL · audit trail',role:'Review and audit trail for human-in-the-loop decisions.',tech:['object-store sink'],eng:'Records every <b>human-review decision</b>, so approvals stay auditable.'}
+     ]},
+    {key:'svc',k:'Microservices',c:'--svc',cs:'--svcsoft',d:'FastAPI on AKS',
+     flow:'reads/writes ↓',
+     comps:[
+       {n:'Coverage Service',m:'ingest + checklist + bundle',role:'Tracks expected vs present documents and equipment; also assembles the KG bundle.',tech:['FastAPI'],eng:'Hosts equipment-ingest, coverage-ingest and the KG bundler — idempotent, no-ops without a session so re-runs never double-count.'},
+       {n:'Equipment Extractor',m:'schedule + vision',role:'Turns schedule tables and one-line diagrams into structured equipment.',tech:['vision','≤200 DPI render'],eng:'Renders at <b>≤200 DPI</b> (400 blanks large sheets) and <b>fails loud</b> on empty-due-to-errors vs. a genuinely empty sheet.'},
+       {n:'KG Loader',m:'bundle → graph',role:'Loads a bundle into the knowledge-graph database.',tech:['SSRF-guarded fetch'],eng:'Fetches the bundle by key through a guarded request; no-ops without a bundle so a package with no one-line still completes.'},
+       {n:'KG Query API',m:'graph reads',role:'Serves the bounded knowledge-graph operation surface to the Q&A agent.',tech:['typed operations'],eng:'Exposes resolve, feeders/loads with breaker + meter collapse, trace-path, containment, filters, aggregates and telemetry.'},
+       {n:'Docs Query API',m:'RAG BFF',role:'The UI-facing synthesis endpoint over the equipment RAG.',tech:['FastAPI BFF'],eng:'Sits on the same retrieval MCP as the agent, so UI and agent answers share one retrieval contract.'}
+     ]},
+    {key:'data',k:'Data stores',c:'--data',cs:'--datasoft',d:'persistence',
+     flow:'',
+     comps:[
+       {n:'Object Store',m:'blobs + bundles',role:'Source documents, by-reference device arrays, and emitted KG bundles.',tech:[],eng:'Everything large lives here and travels as a reference.'},
+       {n:'Hybrid Search Index',m:'vector + keyword',role:'The equipment-docs index behind RAG.',tech:['text-embedding-3-large','semantic reranker'],eng:'Built on a custom ingestion pipeline — heuristic + document-intelligence chunking — not the default chunker.'},
+       {n:'Knowledge-Graph DB',m:'devices + topology',role:'The loaded graph: devices, feeders, breakers, meters and their relationships.',tech:['power-systems ontology'],eng:'Populated from extraction and reconciled two-sided against a reference graph; breakers modeled as first-class nodes.'},
+       {n:'Coverage Store',m:'checklist state',role:'Per-site onboarding session: what is expected, present, ingested.',tech:[],eng:'The system of record for onboarding progress an operator sees in the UI.'}
+     ]}
+  ];
+
+  var XF=[
+    ['run id','A single run id threads every call; large payloads are addressed by it, keeping LLM context small and traces clean.'],
+    ['by-reference','Devices and bundles move as object-store URIs, not through agent context — the fix for a context-window overflow.'],
+    ['gates + HITL','Confidence &lt; 0.85 → LLM tiebreaker; &lt; 0.70 → human review, recorded by the audit MCP.'],
+    ['fail-loud','Empty caused by throttling or a render bug fails the job; only a genuinely empty source finishes empty.'],
+    ['calibration','Retrieval top_k + relevance gate tuned on the live corpus and wired into the MCP as one source of truth.'],
+    ['delivery','Authored the service dependency graph, the dev→QA promotion model, and my app’s CI/CD + GitOps overlays.']
+  ];
+
+  var stack=document.getElementById('stack');
+  LAYERS.forEach(function(L){
+    var sec=document.createElement('div');sec.className='layer';
+    sec.style.setProperty('--lc','var('+L.c+')');sec.style.setProperty('--lcs','var('+L.cs+')');
+    var h='<div class="layer-h"><span class="lk">'+L.k+'</span><span class="ld">'+L.d+'</span></div><div class="comps">';
+    L.comps.forEach(function(c,i){
+      h+='<button class="comp'+(c.ghost?' ghost':'')+'" data-l="'+L.key+'" data-i="'+i+'"><span class="cn">'+c.n+'</span><span class="cm">'+c.m+'</span></button>';
+    });
+    h+='</div>';
+    sec.innerHTML=h;stack.appendChild(sec);
+    if(L.flow){var f=document.createElement('div');f.className='flowtag';f.textContent=L.flow;stack.appendChild(f);}
+  });
+
+  var xfWrap=document.getElementById('xfacts');
+  XF.forEach(function(x){var d=document.createElement('div');d.className='xf';d.innerHTML='<span class="xi">'+x[0]+'</span><span>'+x[1]+'</span>';xfWrap.appendChild(d);});
+
+  function show(L,c){
+    document.querySelectorAll('.comp').forEach(function(e){e.setAttribute('aria-pressed','false');});
+    var el=document.querySelector('.comp[data-l="'+L.key+'"][data-i="'+c.i+'"]');if(el)el.setAttribute('aria-pressed','true');
+    var d=document.getElementById('detail');d.classList.remove('empty');
+    d.style.setProperty('--dc','var('+L.c+')');d.style.setProperty('--dcs','var('+L.cs+')');
+    var tech=c.tech&&c.tech.length?'<div class="tech">'+c.tech.map(function(t){return '<span class="t">'+t+'</span>';}).join('')+'</div>':'';
+    d.innerHTML='<div class="dh"><div class="dk">'+L.k+' layer</div><div class="dt">'+c.n+'</div><div class="da">'+c.m+'</div></div>'+
+      '<div class="db"><div class="role">'+c.role+'</div>'+tech+'<div class="eng">'+c.eng+'</div></div>';
+  }
+  document.querySelectorAll('.comp').forEach(function(b){
+    b.addEventListener('click',function(){
+      var L=LAYERS.find(function(x){return x.key===b.dataset.l;});
+      var c=L.comps[+b.dataset.i];c.i=+b.dataset.i;show(L,c);
+    });
+  });
+  // open the orchestration workflow by default — the heart of the system
+  var L0=LAYERS[1];var c0=L0.comps[0];c0.i=0;show(L0,c0);
+})();
+</script>
+<script>
+(function(){
+  var W=160,H=46;
+  // phase -> [stroke token, soft-fill token]
+  var COL={input:['--ink2','--panel2'],intake:['--agent','--agentsoft'],route:['--orch','--orchsoft'],
+    extract:['--svc','--svcsoft'],kg:['--data','--datasoft'],store:['--mcp','--mcpsoft'],
+    exp:['--exp','--expsoft'],hitl:['--ink2','--panel2']};
+  var N={
+    pkg:{x:220,y:8,label:'Document package',sub:'drawings · schedules · manuals',phase:'input',
+      role:'The raw input — a mixed, often bundled set of engineering documents for one new site.',
+      eng:'Bundled multi-discipline PDFs are the norm, which is exactly what the locate + resolve stages exist to handle.'},
+    reg:{x:220,y:72,label:'Package Registration',sub:'register_package',phase:'intake',
+      role:'Records the package manifest and stamps the run id.',
+      eng:'The run id is spliced in as a first-class field here, so no downstream agent has to scrape it out of prose.'},
+    cls:{x:220,y:136,label:'Document Classification',sub:'rule ladder + LLM tiebreak',phase:'intake',
+      role:'Types every document — SLD, schedule, manual, telemetry, and so on.',
+      eng:'A deterministic rule ladder (first match wins) types ~85%; the LLM only breaks ties below 0.85.'},
+    hitl:{x:410,y:136,label:'Human review',sub:'confidence < 0.70',phase:'hitl',
+      role:'Low-confidence documents are held for a person; each decision is recorded by the audit MCP.',
+      eng:'Gate 1 — anything under 0.70 is not auto-accepted.'},
+    cov:{x:220,y:200,label:'Coverage Ingest',sub:'expected-docs checklist',phase:'intake',
+      role:'Posts the classifier verdicts onto the site coverage checklist.',
+      eng:'No-ops without a session, so a re-run never double-counts.'},
+    orch:{x:220,y:264,label:'Orchestrator',sub:'routing · Gate 1',phase:'route',
+      role:'Decides which disciplines proceed to extraction.',
+      eng:'The only agent that reasons about the package as a whole rather than one document.'},
+    loc:{x:220,y:328,label:'Page Locator',sub:'pages per discipline',phase:'route',
+      role:'Finds the schedule tables and the one-line sheets inside a bundled PDF.',
+      eng:'Emits a disciplines array so each extraction leg reads only its own pages.'},
+    rsch:{x:30,y:412,label:'Extract-Resolve',sub:'schedule · SAS + pages',phase:'extract',
+      role:'Resolves the schedule document to a short-lived READ URL and its pages.',
+      eng:'Picks the right document by localization confidence; no blob credentials needed downstream.'},
+    esch:{x:30,y:476,label:'Equipment Extractor',sub:'schedule tables',phase:'extract',
+      role:'Reads BOM / equipment-schedule tables into structured identity rows.',
+      eng:'Spreadsheets parse as data; PDFs take the vision pass.'},
+    isch:{x:30,y:540,label:'Equipment Ingest',sub:'→ coverage',phase:'extract',
+      role:'Writes the schedule equipment to the coverage session.',
+      eng:'Idempotent; no-ops without a session.'},
+    rsld:{x:410,y:412,label:'Extract-Resolve',sub:'SLD · SAS + pages',phase:'extract',
+      role:'Resolves the electrical one-line document and its pages.',
+      eng:'Sending the discipline deterministically stops a bundled doc from silently skipping the SLD leg.'},
+    esld:{x:410,y:476,label:'Equipment Extractor',sub:'SLD vision',phase:'extract',
+      role:'Vision pipeline over one-line diagrams.',
+      eng:'render → tile → read → dedup → consolidate · ≤200 DPI · fails loud on empty-due-to-errors.'},
+    isld:{x:410,y:540,label:'Equipment Ingest',sub:'→ coverage',phase:'extract',
+      role:'Writes the SLD equipment to the coverage session.',
+      eng:'The device envelope is addressed by run id, not inlined through context.'},
+    bun:{x:220,y:618,label:'KG Bundle',sub:'devices + BOM → bundle',phase:'kg',
+      role:'Assembles a knowledge-graph bundle and emits it to the object store.',
+      eng:'Devices are fetched server-side by run id — the fix for a context-window overflow.'},
+    ld:{x:220,y:682,label:'KG Loader',sub:'bundle → graph',phase:'kg',
+      role:'Loads the bundle into the knowledge-graph database.',
+      eng:'SSRF-guarded fetch; no-ops without a bundle.'},
+    kgdb:{x:220,y:746,label:'Knowledge-Graph DB',sub:'devices · topology',phase:'store',
+      role:'The loaded graph: devices, feeders, breakers, meters and their relationships.',
+      eng:'Reconciled two-sided against a reference graph; breakers modeled as first-class nodes.'},
+    idx:{x:30,y:746,label:'Search Index',sub:'hybrid RAG',phase:'store',
+      role:'The equipment-docs index behind retrieval.',
+      eng:'Built on a custom heuristic + document-intelligence chunking pipeline.'},
+    qa:{x:220,y:820,label:'Equipment Q&A + UI',sub:'operator answers',phase:'exp',
+      role:'Answers operator questions from the graph or the manuals, in the UI.',
+      eng:'Routes each question to a bounded KG operation surface or the manuals RAG.'}
+  };
+  var EDGES=[
+    ['pkg','b','reg','t'],['reg','b','cls','t'],['cls','b','cov','t'],['cov','b','orch','t'],['orch','b','loc','t'],
+    ['cls','r','hitl','l',{label:'< 0.70',dashed:true}],
+    ['loc','b','rsch','t',{curve:true}],['loc','b','rsld','t',{curve:true}],
+    ['rsch','b','esch','t'],['esch','b','isch','t'],['rsld','b','esld','t'],['esld','b','isld','t'],
+    ['isch','b','bun','t',{curve:true}],['isld','b','bun','t',{curve:true}],
+    ['bun','b','ld','t'],['ld','b','kgdb','t'],['kgdb','b','qa','t'],
+    ['idx','b','qa','l',{curve:true,label:'RAG'}]
+  ];
+  function A(id,s){var n=N[id];if(s==='t')return[n.x+W/2,n.y];if(s==='b')return[n.x+W/2,n.y+H];
+    if(s==='l')return[n.x,n.y+H/2];return[n.x+W,n.y+H/2];}
+  function path(p1,p2,curve){
+    if(!curve)return 'M'+p1[0]+','+p1[1]+' L'+p2[0]+','+p2[1];
+    var my=(p1[1]+p2[1])/2;return 'M'+p1[0]+','+p1[1]+' C'+p1[0]+','+my+' '+p2[0]+','+my+' '+p2[0]+','+p2[1];}
+  function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+  var svg='<svg viewBox="0 0 600 878" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="End-to-end onboarding flow">';
+  svg+='<defs><marker id="arr" markerWidth="9" markerHeight="9" refX="6.5" refY="3" orient="auto">'+
+       '<path d="M0,0 L6.5,3 L0,6 Z" fill="var(--ink2)"/></marker></defs>';
+  // edges
+  EDGES.forEach(function(e){
+    var o=e[4]||{};var p1=A(e[0],e[1]),p2=A(e[2],e[3]);
+    svg+='<path d="'+path(p1,p2,o.curve)+'" fill="none" stroke="var(--ink2)" stroke-width="1.5" opacity=".5" marker-end="url(#arr)"'+
+      (o.dashed?' stroke-dasharray="4 3"':'')+'/>';
+    if(o.label){var mx=(p1[0]+p2[0])/2,my=(p1[1]+p2[1])/2-4;
+      svg+='<text class="elabel" x="'+mx+'" y="'+my+'" text-anchor="middle" fill="var(--ink2)">'+esc(o.label)+'</text>';}
+  });
+  // lane labels
+  svg+='<text class="lanelab" x="110" y="405" text-anchor="middle" fill="var(--svc)">SCHEDULE LEG</text>';
+  svg+='<text class="lanelab" x="490" y="405" text-anchor="middle" fill="var(--svc)">ELECTRICAL ONE-LINE LEG</text>';
+  // nodes
+  Object.keys(N).forEach(function(id){var n=N[id];var c=COL[n.phase];
+    svg+='<g class="fnode" data-id="'+id+'" tabindex="0" role="button" aria-label="'+esc(n.label)+'">'+
+      '<rect x="'+n.x+'" y="'+n.y+'" rx="9" width="'+W+'" height="'+H+'" fill="var('+c[1]+')" stroke="var('+c[0]+')" stroke-width="1.5"'+
+        (n.phase==='hitl'?' stroke-dasharray="4 3"':'')+'/>'+
+      '<text class="ft" x="'+(n.x+12)+'" y="'+(n.y+20)+'" fill="var(--ink)">'+esc(n.label)+'</text>'+
+      '<text class="fs" x="'+(n.x+12)+'" y="'+(n.y+35)+'" fill="var(--ink2)">'+esc(n.sub)+'</text>'+
+      '</g>';
+  });
+  svg+='</svg>';
+  document.getElementById('flow').innerHTML=svg;
+
+  function showFlow(id){
+    document.querySelectorAll('.fnode').forEach(function(e){e.setAttribute('aria-selected',e.dataset.id===id);});
+    var n=N[id];var c=COL[n.phase];
+    var d=document.getElementById('detail');if(!d)return;d.classList.remove('empty');
+    d.style.setProperty('--dc','var('+c[0]+')');d.style.setProperty('--dcs','var('+c[1]+')');
+    d.innerHTML='<div class="dh"><div class="dk">flow step</div><div class="dt">'+esc(n.label)+'</div><div class="da">'+esc(n.sub)+'</div></div>'+
+      '<div class="db"><div class="role">'+esc(n.role)+'</div><div class="eng">'+esc(n.eng)+'</div></div>';
+  }
+  document.querySelectorAll('.fnode').forEach(function(g){
+    g.addEventListener('click',function(){showFlow(g.dataset.id);});
+    g.addEventListener('keydown',function(ev){if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();showFlow(g.dataset.id);}});
+  });
+
+  // trace a run — light each step in execution order
+  var TRACE=['pkg','reg','cls','cov','orch','loc','rsch','esch','isch','rsld','esld','isld','bun','ld','kgdb','qa'];
+  var tbtn=document.getElementById('tracebtn');var running=false;
+  var reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
+  if(tbtn)tbtn.addEventListener('click',function(){
+    if(running)return;running=true;tbtn.textContent='● running…';
+    var i=0;
+    function step(){
+      document.querySelectorAll('.fnode').forEach(function(e){e.classList.remove('trace');});
+      if(i>=TRACE.length){running=false;tbtn.textContent='▶ Trace a run';showFlow('qa');return;}
+      var g=document.querySelector('.fnode[data-id="'+TRACE[i]+'"]');
+      if(g)g.classList.add('trace');
+      showFlow(TRACE[i]);
+      i++;setTimeout(step,reduce?0:560);
+    }
+    step();
+  });
+})();
+</script>
+
+<style>
+.pf-nav{max-width:1180px;margin:20px auto 6px;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;
+  padding:14px 16px;border-top:1px solid var(--line);font-family:var(--mono);font-size:12px}
+.pf-nav .pf-k{color:var(--ink2);letter-spacing:.09em;text-transform:uppercase;font-size:10.5px;font-weight:700;margin-right:4px}
+.pf-nav a{color:var(--accent);text-decoration:none;padding:5px 10px;border:1px solid var(--line);border-radius:7px}
+.pf-nav a:hover{border-color:var(--accent)}
+.pf-nav a[aria-current="page"]{background:var(--accent);color:#fff;border-color:var(--accent)}
+.pf-outcome{margin:0 0 18px;padding:11px 15px;border:1px solid var(--line);border-left:4px solid var(--accent);
+  border-radius:11px;background:var(--panel);box-shadow:var(--shadow);font-size:13.5px;color:var(--ink);line-height:1.5}
+.pf-outcome b{color:var(--accent)}
+</style>
+<nav class="pf-nav" aria-label="Agentic AI portfolio"><span class="pf-k">Agentic AI portfolio</span><a href="index.html">&larr; Home</a><a href="architecture.html" aria-current="page">Architecture</a><a href="workflow.html">Workflow</a><a href="classifier.html">Classifier</a><a href="chunking.html">Chunking</a><a href="dangling-edges.html">Dangling edges</a></nav>
+
+</body></html>

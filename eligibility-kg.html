@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="author" content="Bahareh Najafi">
+<meta name="description" content="How immigration eligibility rules were modelled as a two-layer knowledge graph: a shared ontology layer and one subgraph per stream, evaluated with tri-state logic.">
+<title>Eligibility Knowledge Graph</title>
+<style>
+  :root{
+    --bg:#ECEFF3; --panel:#FFFFFF; --panel2:#F4F7FA; --ink:#121820; --ink2:#586471;
+    --line:#D6DDE5; --line2:#E8ECF1; --accent:#0C9AA4; --accentsoft:#0c9aa41f;
+    --sh:#2E9E6B; --shsoft:#2e9e6b1a; --st:#3B7AD0; --stsoft:#3b7ad01a; --rq:#6E70B4; --rqsoft:#6e70b41a;
+    --gp:#CF860C; --gpsoft:#cf860c1a; --bad:#D5503C; --badsoft:#d5503c1a;
+    --shadow:0 1px 2px #0c141b0d,0 12px 30px -14px #0c141b26;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace; --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  }
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+    --bg:#0D131A; --panel:#151D26; --panel2:#1A232D; --ink:#E7EDF3; --ink2:#93A1AF;
+    --line:#26313D; --line2:#1F2833; --accent:#2AD3C4; --accentsoft:#2ad3c422;
+    --sh:#48C78E; --shsoft:#48c78e22; --st:#6BA4F2; --stsoft:#6ba4f222; --rq:#9FA1EA; --rqsoft:#9fa1ea22;
+    --gp:#EEAD3F; --gpsoft:#eead3f22; --bad:#EC6B57; --badsoft:#ec6b5722;
+    --shadow:0 1px 2px #00000040,0 14px 34px -16px #00000080; color-scheme:dark;
+  }}
+  :root[data-theme="dark"]{
+    --bg:#0D131A; --panel:#151D26; --panel2:#1A232D; --ink:#E7EDF3; --ink2:#93A1AF;
+    --line:#26313D; --line2:#1F2833; --accent:#2AD3C4; --accentsoft:#2ad3c422;
+    --sh:#48C78E; --shsoft:#48c78e22; --st:#6BA4F2; --stsoft:#6ba4f222; --rq:#9FA1EA; --rqsoft:#9fa1ea22;
+    --gp:#EEAD3F; --gpsoft:#eead3f22; --bad:#EC6B57; --badsoft:#ec6b5722;
+    --shadow:0 1px 2px #00000040,0 14px 34px -16px #00000080; color-scheme:dark;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.55;-webkit-font-smoothing:antialiased;
+    padding:clamp(16px,3vw,34px) 16px}
+  .wrap{max-width:1120px;margin:0 auto}
+  header{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;flex-wrap:wrap;margin-bottom:16px}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);font-weight:600;margin:0 0 8px}
+  h1{font-size:clamp(23px,3.3vw,33px);line-height:1.08;margin:0;font-weight:800;letter-spacing:-.02em;text-wrap:balance}
+  .sub{color:var(--ink2);margin:9px 0 0;max-width:72ch;font-size:15px}
+  .toggle{flex-shrink:0;display:inline-flex;gap:2px;background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:3px}
+  .toggle button{font-family:var(--mono);font-size:11px;border:0;background:transparent;color:var(--ink2);padding:6px 12px;border-radius:999px;cursor:pointer}
+  .toggle button[aria-pressed="true"]{background:var(--panel);color:var(--ink);box-shadow:var(--shadow)}
+  h2{font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink2);font-weight:600;
+    margin:34px 0 12px;display:flex;align-items:center;gap:10px}
+  h2::after{content:"";flex:1;height:1px;background:var(--line)}
+  p{max-width:78ch}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:16px 18px}
+  .outcome{margin:0 0 6px;padding:12px 16px;border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:11px;background:var(--panel);box-shadow:var(--shadow);font-size:14px}
+  .outcome b{color:var(--accent)}
+  .stats{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+  .stat{font-family:var(--mono);font-size:12px;background:var(--accentsoft);color:var(--accent);border-radius:7px;padding:4px 9px;font-weight:600}
+  .grid{display:grid;grid-template-columns:1fr;gap:14px}
+  .grid>*,.two>*,.demo>*{min-width:0}
+  .scroll{overflow-x:auto}
+  .scroll svg{display:block;width:100%;min-width:760px;height:auto}
+  .legend{display:flex;flex-wrap:wrap;gap:14px;font-family:var(--mono);font-size:11px;color:var(--ink2);margin:10px 2px 0}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+  .seg{display:inline-flex;gap:2px;background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:3px;margin-bottom:10px;flex-wrap:wrap}
+  .seg button{font-family:var(--mono);font-size:11.5px;border:0;background:transparent;color:var(--ink2);padding:6px 11px;border-radius:7px;cursor:pointer}
+  .seg button[aria-pressed="true"]{background:var(--panel);color:var(--ink);box-shadow:var(--shadow)}
+  .gn{cursor:pointer} .gn rect{transition:opacity .15s,stroke-width .12s}
+  .gn[aria-selected="true"] rect{stroke-width:2.8}
+  .dim{opacity:.22}
+  .edge{fill:none;stroke-width:1.4;transition:opacity .15s}
+  .nt{font:700 11.5px var(--sans)} .ns{font:10px var(--mono)}
+  .detail{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);overflow:hidden}
+  .dh{padding:13px 16px;border-bottom:1px solid var(--line);background:var(--dcs,var(--panel2))}
+  .dk{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--dc,var(--ink2));font-weight:700;margin-bottom:3px}
+  .dt{font-weight:800;font-size:16px;letter-spacing:-.01em}
+  .db{padding:13px 16px;font-size:13px;display:flex;flex-direction:column;gap:10px}
+  .detail pre{white-space:pre-wrap}
+  pre{margin:0;font:11.5px/1.5 var(--mono);background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:10px 12px;overflow-x:auto;white-space:pre}
+  code{font-family:var(--mono);font-size:12px;background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:1px 4px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line2);vertical-align:top}
+  th{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink2);font-weight:700}
+  td:first-child{font-weight:650}
+  .tablewrap{overflow-x:auto}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media (max-width:820px){.two{grid-template-columns:1fr}}
+  .demo{display:grid;grid-template-columns:300px 1fr;gap:18px}
+  @media (max-width:820px){.demo{grid-template-columns:1fr}}
+  .ctl{display:flex;flex-direction:column;gap:12px}
+  .ctl label{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink2);font-weight:700;display:block;margin-bottom:5px}
+  .ctl select{width:100%;font:13px var(--sans);padding:7px 9px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--ink)}
+  .tree{font-size:13px;display:flex;flex-direction:column;gap:6px}
+  .row{display:flex;align-items:center;gap:10px;padding:7px 10px;border:1px solid var(--line);border-radius:9px;background:var(--panel2)}
+  .row.ind{margin-left:22px}
+  .row .lbl{flex:1;min-width:0}
+  .row .why{display:block;font-family:var(--mono);font-size:10.5px;color:var(--ink2)}
+  .pill{font-family:var(--mono);font-size:10.5px;font-weight:700;border-radius:999px;padding:3px 9px;white-space:nowrap;letter-spacing:.03em}
+  .p-true{background:var(--shsoft);color:var(--sh)} .p-false{background:var(--badsoft);color:var(--bad)}
+  .p-unknown{background:var(--gpsoft);color:var(--gp)} .p-skip{background:var(--panel);color:var(--ink2);border:1px dashed var(--line)}
+  .result{margin-top:12px;padding:12px 14px;border-radius:10px;border:1px solid var(--line);font-size:13.5px}
+  .note{font-family:var(--mono);font-size:11.5px;color:var(--ink2);margin-top:10px}
+  .pf-nav{margin:30px 0 6px;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:14px 0 0;border-top:1px solid var(--line);font-family:var(--mono);font-size:12px}
+  .pf-nav a{color:var(--accent);text-decoration:none} .pf-nav a[aria-current="page"]{color:var(--ink);font-weight:700}
+  .pf-k{color:var(--ink2);letter-spacing:.09em;text-transform:uppercase;font-size:10.5px;font-weight:700;margin-right:4px}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div>
+    <p class="eyebrow">Case study 2 · Immigration eligibility · Knowledge graph</p>
+    <h1>Eligibility rules as a knowledge graph</h1>
+    <p class="sub">Immigration programs share many of the same building blocks: what counts as one year of work, which occupations are skilled, how a language test score maps to a benchmark. I modelled them as a two-layer graph in Neo4j: a <b>shared ontology layer</b> that defines each concept once, and a <b>subgraph per stream</b> that references it. An evaluator then walks a stream's subgraph against a person's profile.</p>
+  </div>
+  <div class="toggle" role="group" aria-label="Theme">
+    <button data-th="light" aria-pressed="false">Light</button><button data-th="dark" aria-pressed="false">Dark</button>
+  </div>
+</header>
+
+<div class="outcome"><b>Outcome:</b> each stream is classified as <b>qualified</b>, <b>possible</b>, or <b>disqualified</b>, with the exact missing profile fields that would settle a "possible" and the gaps behind a "disqualified". A missing answer stays <i>unknown</i> instead of being guessed, so the next question asked is always one that changes a result.</div>
+<div class="stats"><span class="stat">Neo4j · Cypher</span><span class="stat">2-layer ontology</span><span class="stat">nested AND / OR groups</span><span class="stat">tri-state evaluation</span><span class="stat">declarative condition DSL</span></div>
+
+<h2>The two layers</h2>
+<div class="grid">
+  <div class="card">
+    <div class="seg" role="group" aria-label="Highlight a stream">
+      <button data-f="all" aria-pressed="true">Both streams</button><button data-f="CEC" aria-pressed="false">Canadian Experience Class</button><button data-f="FSW" aria-pressed="false">Federal Skilled Worker</button>
+    </div>
+    <div class="scroll" id="graph"></div>
+    <div class="legend"><span><i style="background:var(--sh)"></i>shared concept</span><span><i style="background:var(--st)"></i>stream</span><span><i style="background:var(--rq)"></i>requirement</span><span style="color:var(--st)">── has requirement</span><span style="color:var(--sh)">- - - references</span></div>
+  </div>
+  <aside class="detail" id="detail" aria-live="polite"></aside>
+</div>
+<p class="note">Click any node. Subgraphs are shown as I designed them; amounts and score ranges come from the official pages at the time and may since have changed.</p>
+
+<h2>Why a graph, not a question tree</h2>
+<div class="card tablewrap">
+<table>
+  <thead><tr><th>Concern</th><th>Atomic question tree</th><th>Ontology-based knowledge graph</th></tr></thead>
+  <tbody>
+    <tr><td>Structure</td><td>Shaped around the questions asked</td><td>Hierarchical and semantic: stream → requirement → condition</td></tr>
+    <tr><td>Duplication</td><td>High: the same question repeats in every stream</td><td>Low: a concept such as TEER or "one year = 1,560 hours" is defined once and referenced</td></tr>
+    <tr><td>Meaning</td><td>Implicit in question text</td><td>Explicit condition and concept nodes</td></tr>
+    <tr><td>Partial evaluation</td><td>Hard: questions don't know what is already known</td><td>Natural: check the profile first, ask only for what is missing</td></tr>
+    <tr><td>Change</td><td>A rule change means editing every copy</td><td>Change the shared definition once; every stream that references it follows</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2>Anatomy of a requirement</h2>
+<div class="two">
+  <div class="card">
+    <p style="margin-top:0"><b>Requirement</b>: one conceptual block of eligibility (work experience, language, education). It can carry its own <b>gate</b>, evaluated first.</p>
+    <p><b>Condition</b>: one testable rule. It reads a value through a <b>pointer</b> into the profile, applies an <b>operator</b>, and compares to a literal or to another profile value.</p>
+    <p><b>Condition group</b>: combines child conditions and nested groups with <b>AND</b> (default) or <b>OR</b>. Alternatives, such as "English at CLB 7 <i>or</i> French at NCLC 7", become OR groups.</p>
+    <p style="margin-bottom:0"><b>applies_if</b>: a gate on a condition. If it does not apply, the condition is <i>skipped</i>, not failed. Example: a licensing rule only applies to regulated occupations.</p>
+  </div>
+  <div class="card">
+    <p style="margin-top:0;font-size:13px;color:var(--ink2)">A condition as stored on its node: per-ability language minimums, only evaluated when the person has a test result.</p>
+<pre>{
+  "id": "language_minimums",
+  "applies_if": { "any": [
+    { "field": "english.has_test", "operator": "==", "values": true },
+    { "field": "french.has_test",  "operator": "==", "values": true } ] },
+  "profile_pointer_set_json": {
+    "reading":   "language.first_official.scores.reading",
+    "writing":   "language.first_official.scores.writing",
+    "listening": "language.first_official.scores.listening",
+    "speaking":  "language.first_official.scores.speaking" },
+  "operator_eval_each": "&gt;=",
+  "values_each_json": { "reading": 7, "writing": 7,
+                        "listening": 7, "speaking": 7 },
+  "set_quantifier": "all"
+}</pre>
+  </div>
+</div>
+
+<h2>The condition language</h2>
+<div class="card tablewrap">
+<table>
+  <thead><tr><th>Building block</th><th>Options</th><th>Used for</th></tr></thead>
+  <tbody>
+    <tr><td>Pointer (left side)</td><td>single path · named set of paths · map · <code>value_pointer</code> for the right side</td><td>A set evaluates all four language abilities in one condition; a right-side pointer compares against a profile value, such as required settlement funds for the family size</td></tr>
+    <tr><td>Operator, by priority</td><td><code>helper</code> → <code>eval_each</code> → <code>eval</code> → basic (<code>==</code>, <code>in</code>, <code>&gt;=</code>, <code>not_in</code> …)</td><td>Per-key thresholds, custom comparisons, and named helper functions for logic that is not a comparison</td></tr>
+    <tr><td>Set quantifier</td><td><code>all</code> (default) · <code>any</code> · <code>sum</code></td><td><code>sum</code> adds work hours across occupations and time windows before comparing with 1,560</td></tr>
+    <tr><td>Helpers</td><td>e.g. remote work in Canada · skilled-trades occupation codes</td><td>"If you worked remotely, you must have been in Canada, working for a Canadian employer"; "a qualifying trade code with hours in the window, excluding listed sub-groups"</td></tr>
+    <tr><td>Outcomes</td><td>condition: true · false · unknown · skip<br>requirement: met · not met · unknown</td><td>"Unknown" carries the missing pointer forward, so it becomes the next question rather than a wrong answer</td></tr>
+  </tbody>
+</table>
+</div>
+<p class="note">When a rule could not be computed from existing profile fields, the profile schema grew a derived field instead of the rule growing code: for example, hours pre-aggregated by country, time window, and occupation level. Business logic stayed declarative and testable.</p>
+
+<h2>Try it: one requirement, evaluated</h2>
+<div class="card">
+<p style="margin-top:0">The language requirement of the Canadian Experience Class: an approved test, valid on the day you apply, and a minimum score that depends on the occupation level of your experience. The minimum is an OR group of four conditions, each gated by <code>applies_if</code>.</p>
+<div class="demo">
+  <div class="ctl">
+    <div><label for="teer">Occupation level (TEER) of experience</label>
+      <select id="teer"><option value="01">TEER 0 or 1</option><option value="23">TEER 2 or 3</option><option value="">not provided</option></select></div>
+    <div><label for="lang">Language test taken</label>
+      <select id="lang"><option value="en">English (IELTS / CELPIP)</option><option value="fr">French (TEF / TCF)</option><option value="none">none</option><option value="">not provided</option></select></div>
+    <div><label for="valid">Results valid on application day</label>
+      <select id="valid"><option value="y">yes</option><option value="n">no (expired)</option><option value="">not provided</option></select></div>
+    <div><label for="lvl">Lowest of the 4 abilities (CLB / NCLC)</label>
+      <select id="lvl"><option>8</option><option selected>7</option><option>6</option><option>5</option><option>4</option><option value="">not provided</option></select></div>
+  </div>
+  <div>
+    <div class="tree" id="tree"></div>
+    <div class="result" id="res"></div>
+  </div>
+</div>
+<p class="note">Group rule: OR is true if any participating child is true; skipped children do not participate; with no true child, any unknown keeps the group unknown. The requirement here reduces like AND: any false → not met, any unknown → unknown, otherwise met.</p>
+</div>
+
+<h2>Around the evaluator</h2>
+<div class="card">
+<p style="margin-top:0">I built the evaluator into a conversational loop. A router turns what the person has said into a partial profile; the evaluator returns qualified, possible, and disqualified streams plus the missing fields; a question recommender picks the next question; answers update the profile, and the loop repeats until nothing unknown can change a result.</p>
+<p style="margin-bottom:0">The question recommender ranks missing fields by one of three policies: <b>commonality</b> (needed by the most still-possible streams), <b>gating</b> (fields that can disqualify many streams at once, such as occupation level or residence), or <b>discrimination</b> between the remaining streams. Only fields a person can actually answer are asked; derived fields are computed.</p>
+</div>
+
+<h2>Keeping it current</h2>
+<div class="card">
+<p style="margin-top:0">Official pages change. Each stream subgraph records its source URL and extraction date, and I wrote a playbook for authoring and maintaining streams: <b>detect</b> a change (page timestamp, policy notices, archived-snapshot diffs) → <b>localize</b> it to requirement and condition IDs → <b>update</b> while keeping IDs stable when meaning is unchanged → <b>validate</b> against seed profiles covering edge cases and opposite branches → <b>version</b> with a changelog → <b>peer review</b>.</p>
+<p style="margin-bottom:0"><a href="stream-agent.html" style="color:var(--accent);font-weight:650">How I would turn that playbook into an agent today →</a></p>
+</div>
+
+<nav class="pf-nav" aria-label="Portfolio"><span class="pf-k">Portfolio</span><a href="index.html">&larr; Home</a><a href="eligibility-kg.html" aria-current="page">Eligibility graph</a><a href="stream-agent.html">Stream agent (redesign)</a></nav>
+</div>
+
+<script>
+(function(){
+  var root=document.documentElement,tb=[].slice.call(document.querySelectorAll('.toggle button'));
+  function setT(t){root.setAttribute('data-theme',t);tb.forEach(function(b){b.setAttribute('aria-pressed',String(b.dataset.th===t));});}
+  tb.forEach(function(b){b.addEventListener('click',function(){setT(b.dataset.th);});});
+  setT(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
+
+  function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+  // ---------- graph ----------
+  var W=160,H=46;function wd(n){return n.k==='st'?280:W;}
+  var N={
+    oneyear:{k:'sh',x:12,y:52,label:'One year of work',sub:'= 1,560 hours',
+      d:'Defined once and referenced by every stream that asks for "one year".',
+      t:'(One_Year_Work_Experience:concept)\n ├─ 1 year = 1,560 hours total\n ├─ full time, one job: 30 h/week × 12 months\n ├─ part time: 15 h/week × 24 months\n └─ full time, several jobs: 30 h/week × 12 months'},
+    teer:{k:'sh',x:196,y:52,label:'Skilled work',sub:'TEER 0 · 1 · 2 · 3',
+      d:'Occupation levels that count as skilled work.',
+      t:'(Skilled_Work_Definition:concept)\n ├─ TEER 0  management occupations\n ├─ TEER 1  usually a university degree\n ├─ TEER 2  college diploma, ≥2 yr apprenticeship,\n │          or supervisory\n └─ TEER 3  college diploma, <2 yr apprenticeship,\n            or >6 months on-the-job'},
+    auth:{k:'sh',x:380,y:52,label:'Work authorization',sub:'temporary status',
+      d:'Work counts only if gained while authorized under temporary resident status.',
+      t:'(Authorization_Definitions:concept)\n └─ Authorized_To_Work_Temporarily'},
+    paid:{k:'sh',x:564,y:52,label:'Paid work',sub:'wages or commission',
+      d:'Volunteer work and unpaid internships do not count.',
+      t:'(Paid_Work_Definition:concept)\n └─ Paid_Work: wages or commission,\n    not volunteer or unpaid'},
+    langsh:{k:'sh',x:748,y:52,label:'Language basics',sub:'shared by streams',
+      d:'Conditions that every language requirement repeated, lifted into the shared layer.',
+      t:'(Language_Ability_Shared:concept)\n ├─ Approved_Language_Test\n ├─ All_Four_Abilities_Tested\n └─ Language_Test_Valid  (on application day)'},
+    langeq:{k:'sh',x:932,y:52,label:'Test equivalency',sub:'CLB · NCLC',
+      d:'Maps each test\'s scores to the national benchmark, per ability.',
+      t:'(Language_Test_Definitions:concept)\n ├─ English: IELTS, CELPIP → CLB\n │   ├─ CLB7_Equivalent_IELTS\n │   ├─ CLB5_Equivalent_IELTS\n │   ├─ CLB7_Equivalent_CELPIP\n │   └─ CLB5_Equivalent_CELPIP\n └─ French: TEF, TCF → NCLC\n     ├─ NCLC7_Equivalent_TEF / TCF\n     └─ NCLC5_Equivalent_TEF / TCF\n\nper-ability rows, e.g.\n(LT_IELTS_Speaking_CLB7)\n  ability = Speaking, clbLevel = 7,\n  ieltsScoreMin = 6.0'},
+    CEC:{k:'st',x:150,y:330,label:'Canadian Experience Class',sub:'Stream',s:'CEC',
+      d:'For people with skilled work experience gained in Canada.',
+      t:'(CEC:Stream)\n ├─ has_requirement → Canadian skilled work experience\n ├─ has_requirement → Language ability\n └─ has_requirement → Education\n      (no minimum; may add ranking points)'},
+    FSW:{k:'st',x:722,y:330,label:'Federal Skilled Worker',sub:'Stream',s:'FSW',
+      d:'For skilled workers with experience in Canada or abroad.',
+      t:'(FSW:Stream)\n ├─ has_requirement → Skilled work experience\n ├─ has_requirement → Language ability\n └─ has_requirement → Education'},
+    cecwork:{k:'rq',x:12,y:210,label:'Work experience',sub:'CEC · requirement',s:'CEC',r:['oneyear','teer','auth','paid'],
+      d:'All conditions must hold. The one-year rule is an AND group: the shared definition plus a time window.',
+      t:'(Canadian_Skilled_Work_Experience:requirement)\n ├─ group AND: At_Least_One_Year_Work\n │   ├─ references → One_Year_Work_Experience\n │   └─ Within_3_Years_Before_Apply\n ├─ Skilled_Work_In_TEER_Categories → TEER 0–3\n ├─ Work_Authorized_In_Canada → Authorized_To_Work_Temporarily\n ├─ Performed_Lead_Statement_Of_NOC\n ├─ Performed_Most_Main_Duties_Of_NOC\n ├─ Work_Is_Paid → Paid_Work\n └─ Physically_In_Canada_If_Remote  (helper)'},
+    ceclang:{k:'rq',x:196,y:210,label:'Language ability',sub:'CEC · requirement',s:'CEC',r:['langsh','langeq','teer'],
+      d:'The minimum score depends on the occupation level of the experience, so the group references TEER as well as test equivalency.',
+      t:'(CEC_Language_Ability:requirement)\n ├─ references → Language_Ability_Shared\n └─ group OR: Min_Score_CEC\n     ├─ English_TEER0_1 → CLB7 (IELTS/CELPIP), TEER 0,1\n     ├─ French_TEER0_1  → NCLC7 (TEF/TCF),     TEER 0,1\n     ├─ English_TEER2_3 → CLB5 (IELTS/CELPIP), TEER 2,3\n     └─ French_TEER2_3  → NCLC5 (TEF/TCF),     TEER 2,3'},
+    fswwork:{k:'rq',x:614,y:210,label:'Work experience',sub:'FSW · requirement',s:'FSW',r:['oneyear','teer','paid'],
+      d:'Same shared definitions as CEC, with a different window (10 years, in Canada or abroad) and an OR for how the year is made up.',
+      t:'(FSW_Skilled_Work_Experience:requirement)\n ├─ Skilled_Work_In_TEER_Categories → TEER 0–3\n ├─ Primary_Occupation_Matches_NOC\n ├─ Performed_Lead_Statement_Of_NOC\n ├─ Performed_Most_Main_Duties_Of_NOC\n ├─ Work_Is_Paid → Paid_Work\n ├─ Work_Within_Last_10_Years\n └─ group OR: At_Least_One_Year_Or_1560_Hours\n     ├─ One_Year_Continuous_Work   → One_Year_Work_Experience\n     └─ One_Year_Equivalent_1560_Hours → One_Year_Work_Experience'},
+    fswlang:{k:'rq',x:798,y:210,label:'Language ability',sub:'FSW · requirement',s:'FSW',r:['langsh','langeq'],
+      d:'Reuses the same shared language basics as CEC; only the minimum differs.',
+      t:'(FSW_Language_Ability:requirement)\n ├─ references → Language_Ability_Shared\n └─ group OR: Min_Score_FSW\n     ├─ English_CLB7 → CLB7 (IELTS/CELPIP), all four abilities\n     └─ French_NCLC7 → NCLC7 (TEF/TCF),     all four abilities'},
+    fswedu:{k:'rq',x:982,y:210,label:'Education',sub:'FSW · requirement',s:'FSW',r:[],
+      d:'Stream-specific: nested OR between Canadian and foreign education, with an assessment from a designated organization for foreign credentials.',
+      t:'(FSWP_Education_Requirement:requirement)\n ├─ Education_From_Canada\n │   ├─ Canadian_Secondary\n │   └─ Canadian_Post_Secondary\n └─ Foreign_Education\n     ├─ Foreign_Credential\n     └─ ECA_Required\n         ├─ ECA_From_Designated_Org\n         │   └─ one of five designated organizations\n         └─ ECA_Shows_Equivalent\n             ├─ equivalent to Canadian secondary\n             └─ equivalent to Canadian post-secondary'}
+  };
+  var KIND={sh:['--sh','--shsoft','shared concept'],st:['--st','--stsoft','stream'],rq:['--rq','--rqsoft','requirement']};
+  var VW=1154,VH=396,svg='<svg viewBox="0 0 '+VW+' '+VH+'" role="img" aria-label="Shared ontology layer above, stream subgraphs below">';
+  svg+='<rect x="2" y="8" width="'+(VW-4)+'" height="104" rx="12" fill="var(--shsoft)" stroke="var(--line)"/>';
+  svg+='<text x="14" y="28" class="ns" fill="var(--sh)" style="font-weight:700;letter-spacing:.08em">SHARED ONTOLOGY LAYER · defined once</text>';
+  svg+='<text x="452" y="306" class="ns" fill="var(--ink2)" style="font-weight:700;letter-spacing:.08em">STREAM LAYER · one subgraph per stream</text>';
+  var E=[];
+  Object.keys(N).forEach(function(id){var n=N[id];
+    if(n.k==='rq'){E.push({a:n.s,b:id,kind:'has',s:n.s});(n.r||[]).forEach(function(t){E.push({a:id,b:t,kind:'ref',s:n.s});});}});
+  E.forEach(function(e,i){var a=N[e.a],b=N[e.b],path,col;
+    if(e.kind==='has'){var x1=a.x+wd(a)/2,y1=a.y,x2=b.x+W/2,y2=b.y+H;path='M'+x1+' '+y1+' C'+x1+' '+(y1-40)+' '+x2+' '+(y2+40)+' '+x2+' '+y2;col='var(--st)';}
+    else{var x1=a.x+W/2,y1=a.y,x2=b.x+W/2,y2=b.y+H;path='M'+x1+' '+y1+' C'+x1+' '+(y1-50)+' '+x2+' '+(y2+50)+' '+x2+' '+y2;col='var(--sh)';}
+    svg+='<path class="edge" data-s="'+e.s+'" data-a="'+e.a+'" data-b="'+e.b+'" d="'+path+'" stroke="'+col+'"'+(e.kind==='ref'?' stroke-dasharray="5 4"':'')+' opacity=".75"/>';});
+  Object.keys(N).forEach(function(id){var n=N[id],c=KIND[n.k],w=wd(n);
+    svg+='<g class="gn" data-id="'+id+'" tabindex="0" role="button" aria-label="'+esc(n.label)+'">'+
+      '<rect x="'+n.x+'" y="'+n.y+'" rx="9" width="'+w+'" height="'+H+'" fill="var(--panel)" stroke="var('+c[0]+')" stroke-width="1.6"/>'+
+      '<rect x="'+n.x+'" y="'+n.y+'" rx="9" width="'+w+'" height="'+H+'" fill="var('+c[1]+')" stroke="none"/>'+
+      '<text class="nt" x="'+(n.x+11)+'" y="'+(n.y+20)+'" fill="var(--ink)">'+esc(n.label)+'</text>'+
+      '<text class="ns" x="'+(n.x+11)+'" y="'+(n.y+35)+'" fill="var(--ink2)">'+esc(n.sub)+'</text></g>';});
+  svg+='</svg>';
+  document.getElementById('graph').innerHTML=svg;
+
+  var cur='all';
+  function related(id){var r={};r[id]=1;E.forEach(function(e){if(e.a===id)r[e.b]=1;if(e.b===id)r[e.a]=1;});return r;}
+  function show(id){
+    var n=N[id],c=KIND[n.k],d=document.getElementById('detail');
+    document.querySelectorAll('.gn').forEach(function(g){g.setAttribute('aria-selected',String(g.dataset.id===id));});
+    d.style.setProperty('--dc','var('+c[0]+')');d.style.setProperty('--dcs','var('+c[1]+')');
+    var users=[];if(n.k==='sh'){E.forEach(function(e){if(e.b===id&&e.kind==='ref')users.push((N[e.a].s)+' · '+N[e.a].label);});}
+    d.innerHTML='<div class="dh"><div class="dk">'+c[2]+'</div><div class="dt">'+esc(n.label)+'</div></div><div class="db"><div>'+esc(n.d)+'</div>'+
+      (users.length?'<div style="font-size:12px;color:var(--ink2)"><b style="color:var(--sh)">Referenced by:</b> '+esc(users.join(', '))+'</div>':'')+
+      '<pre>'+esc(n.t)+'</pre></div>';
+  }
+  function filter(f){cur=f;
+    document.querySelectorAll('.seg button').forEach(function(b){b.setAttribute('aria-pressed',String(b.dataset.f===f));});
+    var keep={};
+    if(f==='all'){Object.keys(N).forEach(function(k){keep[k]=1;});}
+    else{Object.keys(N).forEach(function(k){if(N[k].s===f)keep[k]=1;});E.forEach(function(e){if(e.s===f){keep[e.a]=1;keep[e.b]=1;}});}
+    document.querySelectorAll('.gn').forEach(function(g){g.classList.toggle('dim',!keep[g.dataset.id]);});
+    document.querySelectorAll('.edge').forEach(function(p){p.classList.toggle('dim',f!=='all'&&p.dataset.s!==f);});
+  }
+  document.querySelectorAll('.seg button').forEach(function(b){b.addEventListener('click',function(){filter(b.dataset.f);});});
+  document.querySelectorAll('.gn').forEach(function(g){
+    g.addEventListener('click',function(){show(g.dataset.id);});
+    g.addEventListener('keydown',function(ev){if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();show(g.dataset.id);}});});
+  show('oneyear');
+
+  // ---------- evaluator demo ----------
+  function pill(r){return '<span class="pill p-'+r+'">'+r+'</span>';}
+  function orReduce(ch){var kept=ch.filter(function(c){return c.r==='true'||c.r==='false';});
+    var anyU=ch.some(function(c){return c.r==='unknown';});
+    if(kept.some(function(c){return c.r==='true';}))return 'true';
+    if(!kept.length)return anyU?'unknown':'true';
+    return anyU?'unknown':'false';}
+  function evalDemo(){
+    var teer=document.getElementById('teer').value,lang=document.getElementById('lang').value,
+        valid=document.getElementById('valid').value,lvl=document.getElementById('lvl').value,missing=[];
+    var c1={n:'Approved_Language_Test',why:'language.test_taken in approved tests'};
+    if(lang===''){c1.r='unknown';missing.push('which language test');}else c1.r=(lang==='none')?'false':'true';
+    var c2={n:'Language_Test_Valid',why:'results valid on application day'};
+    if(lang==='none'){c2.r='skip';c2.why='applies_if: a test was taken → not applicable';}
+    else if(valid===''){c2.r='unknown';missing.push('test date / validity');}else c2.r=valid==='y'?'true':'false';
+    var kids=[['English_TEER0_1','en','01',7,'CLB'],['French_TEER0_1','fr','01',7,'NCLC'],['English_TEER2_3','en','23',5,'CLB'],['French_TEER2_3','fr','23',5,'NCLC']].map(function(k){
+      var o={n:k[0],why:'applies_if: '+(k[1]==='en'?'English':'French')+' test and TEER '+(k[2]==='01'?'0/1':'2/3')+'; all four ≥ '+k[4]+' '+k[3]};
+      var langOk=(lang===''?null:lang===k[1]),teerOk=(teer===''?null:teer===k[2]);
+      if(langOk===false||teerOk===false){o.r='skip';return o;}
+      if(langOk===null||teerOk===null){o.r='unknown';return o;}
+      if(lvl===''){o.r='unknown';return o;}
+      o.r=(+lvl>=k[3])?'true':'false';return o;});
+    if(lang!=='none'&&lang!==''&&teer==='')missing.push('occupation level (TEER) of experience');
+    if(lang!=='none'&&lang!==''&&teer!==''&&lvl==='')missing.push('test scores, per ability');
+    var g={n:'group OR · Min_Score_CEC',r:orReduce(kids)};
+    var reqKids=[c1,c2,g].filter(function(c){return c.r!=='skip';}),req;
+    if(reqKids.some(function(c){return c.r==='false';}))req='not met';
+    else if(reqKids.some(function(c){return c.r==='unknown';}))req='unknown';
+    else req='met';
+    var h='';
+    [c1,c2].forEach(function(c){h+='<div class="row"><span class="lbl">'+c.n+'<span class="why">'+esc(c.why)+'</span></span>'+pill(c.r)+'</div>';});
+    h+='<div class="row" style="border-color:var(--gp)"><span class="lbl"><b>'+g.n+'</b><span class="why">true if any participating child is true</span></span>'+pill(g.r)+'</div>';
+    kids.forEach(function(c){h+='<div class="row ind"><span class="lbl">'+c.n+'<span class="why">'+esc(c.why)+'</span></span>'+pill(c.r)+'</div>';});
+    document.getElementById('tree').innerHTML=h;
+    var col=req==='met'?'--sh':(req==='not met'?'--bad':'--gp'),soft=req==='met'?'--shsoft':(req==='not met'?'--badsoft':'--gpsoft');
+    var msg=req==='met'?'The stream stays <b>qualified</b> on language.':
+      (req==='not met'?'The stream is <b>disqualified</b>; the failing condition is recorded as the gap.':
+      'The stream stays <b>possible</b>. Next question: '+esc(missing.join(', ')||'the missing field')+'.');
+    var r=document.getElementById('res');r.style.background='var('+soft+')';r.style.borderColor='var('+col+')';
+    r.innerHTML='<b style="color:var('+col+')">Requirement: '+req+'</b> · '+msg;
+  }
+  ['teer','lang','valid','lvl'].forEach(function(id){document.getElementById(id).addEventListener('change',evalDemo);});
+  evalDemo();
+})();
+</script>
+</body>
+</html>
