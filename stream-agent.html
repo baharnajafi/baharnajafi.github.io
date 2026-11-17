@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="author" content="Bahareh Najafi">
-<meta name="description" content="A redesign: an agent, built with LangGraph, that adds a new immigration stream to the eligibility knowledge graph and keeps it current as official pages change.">
-<title>Stream Agent Redesign</title>
+<meta name="description" content="Design of an agent, built on LangGraph, that adds a new immigration stream to the eligibility knowledge graph and keeps it current as official pages change.">
+<title>Stream Agent Design</title>
 <style>
 
   :root{
@@ -118,16 +118,15 @@
 <div class="wrap">
 <header>
   <div>
-    <p class="eyebrow">Case study 2 · Redesign · Agentic workflow</p>
+    <p class="eyebrow">Case study 2 · Agent design</p>
     <h1>An agent that adds and maintains stream subgraphs</h1>
-    <p class="sub">Adding a new immigration stream to the <a href="eligibility-kg.html" style="color:var(--accent)">eligibility knowledge graph</a> meant reading the official page, breaking it into requirements and conditions, linking them to the shared ontology, and validating the result. Keeping streams current meant repeating part of that whenever a page changed. This page shows how I would build that as an agent today.</p>
+    <p class="sub">Adding a new immigration stream to the <a href="eligibility-kg.html" style="color:var(--accent)">eligibility knowledge graph</a> means reading the official page, breaking it into requirements and conditions, linking them to the shared ontology, and validating the result. Keeping streams current means repeating part of that whenever a page changed. This page is the design of an agent that does both.</p>
   </div>
   <div class="toggle" role="group" aria-label="Theme">
     <button data-th="light" aria-pressed="false">Light</button><button data-th="dark" aria-pressed="false">Dark</button>
   </div>
 </header>
 
-<div class="banner"><b>A redesign, not the shipped system.</b> The graph model, the condition language, and the maintenance playbook on this page are what I built. The agent below is my design for automating that playbook with LangGraph and a vector store, written as a system-design exercise.</div>
 
 <h2>The playbook becomes the spec</h2>
 <div class="card tablewrap">
@@ -229,7 +228,7 @@ lint    pass · regression table attached</pre>
   </div>
 </div>
 
-<h2>How I would know it works</h2>
+<h2>Evaluation</h2>
 <div class="card">
 <p style="margin-top:0">The hand-built streams are the test set. Replay their stored source snapshots through the agent and compare its subgraph with the one people wrote.</p>
 <div class="tablewrap"><table>
@@ -256,7 +255,7 @@ lint    pass · regression table attached</pre>
 </ol>
 </div>
 
-<nav class="pf-nav" aria-label="Portfolio"><span class="pf-k">Portfolio</span><a href="index.html">&larr; Home</a><a href="eligibility-kg.html">Eligibility graph</a><a href="stream-agent.html" aria-current="page">Stream agent (redesign)</a></nav>
+<nav class="pf-nav" aria-label="Portfolio"><span class="pf-k">Portfolio</span><a href="index.html">&larr; Home</a><a href="eligibility-kg.html">Eligibility graph</a><a href="stream-agent.html" aria-current="page">Stream agent design</a></nav>
 </div>
 
 <script>
